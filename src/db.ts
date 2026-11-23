@@ -162,3 +162,37 @@ export function saveFact(
 
     return current ? "changed" : "added";
 }
+
+export function getUserMessagesInRange(
+    userId: string,
+    fromIso: string,
+    toIso: string,
+    excludeChatId: string = "",
+    limit: number = 5
+): (Message & { chat_title: string })[] {
+    return db
+        .prepare(
+            `SELECT m.*, c.title AS chat_title
+             FROM messages m JOIN chats c ON c.id = m.chat_id
+             WHERE c.user_id = ? AND m.role = 'user'
+               AND m.created_at BETWEEN ? AND ?
+               AND m.chat_id != ?
+             ORDER BY m.created_at DESC LIMIT ?`
+        )
+        .all(userId, fromIso, toIso, excludeChatId, limit) as (Message & { chat_title: string })[];
+}
+
+export function getFactsInRange(
+    userId: string,
+    fromIso: string,
+    toIso: string,
+    limit: number = 5
+): Fact[] {
+    return db
+        .prepare(
+            `SELECT * FROM facts
+             WHERE user_id = ? AND valid_from <= ? AND (valid_to IS NULL OR valid_to >= ?)
+             ORDER BY observed_at DESC LIMIT ?`
+        )
+        .all(userId, toIso, fromIso, limit) as Fact[];
+}
