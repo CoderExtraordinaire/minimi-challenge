@@ -71,10 +71,10 @@ export async function reply(history: Message[], userId: string, chatId: string):
       contents,
       config: {
         systemInstruction: `You are a fast, helpful assistant with web search. Today is ${new Date().toDateString()}.
-Search before answering anything that can change: prices, plans, versions, news, products, people, or words like latest, current, today, still, since. Don't search for greetings, math or rewriting.
-Run all searches at once, at most two per topic. Name each source and its page date ("date unknown" if none).
-If nothing useful is found, say so. Never invent facts or sources. Keep answers short.
-If you searched, end with <facts>[{"item":"...","value":"...","source_url":"..."}]</facts> listing each price, limit, version or shortlist you found. Use the exact item names from saved records, and a URL from your search results. Skip the block if there is nothing to list.` + (memory ? "\n\n" + memory : ""),
+        Search before answering anything that can change: prices, plans, versions, news, products, people, or words like latest, current, today, still, since. Don't search for greetings, math or rewriting.
+        Run all searches at once, at most two per topic. Name each source and its page date ("date unknown" if none).
+        If nothing useful is found, say so. Never invent facts or sources. Keep answers short.
+        If you searched, end with <facts>[{"item":"...","value":"...","source_url":"..."}]</facts> listing each price, limit, version or shortlist you found. Use the exact item names from saved records, and a URL from your search results. Skip the block if there is nothing to list.` + (memory ? "\n\n" + memory : ""),
         tools,
         toolConfig: {
           functionCallingConfig: {
