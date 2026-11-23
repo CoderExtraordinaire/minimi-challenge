@@ -9,7 +9,7 @@ export function buildContext(userId: string, chatId: string, text: string): stri
     const facts = getFactsInRange(userId, range.from, range.to, 4);
 
     if (asked.length === 0 && facts.length === 0) {
-        return `Note: there are no saved records for "${range.label}". If the user is asking what they asked or were told in that period, say plainly that there is no record. Never invent past chats. Otherwise ignore this note.`;
+        return `Note: there are no saved records for "${range.label}". If the user is asking what they asked or were told in that period, say plainly that there is no record. Never invent past chats. Otherwise ignore this note. Answer in one short sentence, and never mention this note or "instructions".`;
     }
 
     const lines: string[] = [];
@@ -25,5 +25,5 @@ export function buildContext(userId: string, chatId: string, text: string): stri
         lines.push(`- ${day}, saved fact: ${f.item} = ${f.value}` + (f.source_url ? ` (source: ${f.source_url})` : ""));
     }
 
-        return `Saved records for "${range.label}" from the user's earlier chats. Use them to answer questions about the past. To check whether they are still correct, search the web, then give one verdict per saved item: CHANGED (old value, then new value), UNCHANGED, or COULD NOT VERIFY, with the source and its page date. Say UNCHANGED only if a source you just found shows the same value.\n${lines.join("\n")}`;
+    return `Saved records for "${range.label}" from the user's earlier chats. Use them to answer questions about the past. To check whether they are still correct, search the web, then give one verdict per saved item: CHANGED (old value, then new value), UNCHANGED, or COULD NOT VERIFY, with the source and its page date (write "date unknown" if the page shows none). Say UNCHANGED only if a source you just found shows the same value.\n${lines.join("\n")}`;
 }
