@@ -11,7 +11,11 @@ export function resolveDateRange(text: string, now: Date = new Date()): DateRang
     if (!found) return null;
 
     let start = found.start.date();
-    if (found.start.isCertain("weekday") && !found.start.isCertain("month") && start > now) {
+
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0);
+
+    if (found.start.isCertain("weekday") && !found.start.isCertain("month") && start >= startOfToday) {
         start = new Date(start.getTime() - 7 * 24 * 60 * 60 * 1000);
     }
 

@@ -64,7 +64,7 @@ app.post("/api/chats/:id/messages", async (req, res) => {
   addMessage(chat.id, "user", content.trim());
   if (chat.title === "New chat") setTitle(chat.id, content.trim().slice(0, 40));
 
-  const answer = await reply(getMessages(chat.id));
+  const answer = await reply(getMessages(chat.id), userId, chat.id);
   addMessage(chat.id, "assistant", answer);
 
   res.status(201).json(getMessages(chat.id));

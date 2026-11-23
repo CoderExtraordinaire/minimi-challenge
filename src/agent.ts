@@ -1,6 +1,10 @@
-import { GoogleGenAI, Type, FunctionCallingConfigMode, type Content, ThinkingLevel } from "@google/genai";
+import { GoogleGenAI, Type, FunctionCallingConfigMode, ThinkingLevel, type Content } from "@google/genai";
+import { saveFact, type Message } from "./db.js";
+import { extractFacts } from "./facts.js";
+import { buildContext } from "./context.js";
 import { webSearch } from "./search.js";
-import type { Message } from "./db.js";
+
+const MODEL = "gemini-3.5-flash-lite";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -37,48 +41,60 @@ async function generateWithRetry(
   throw new Error("unreachable");
 }
 
-export async function reply(history: Message[]): Promise<string> {
+export async function reply(history: Message[], userId: string, chatId: string): Promise<string> {
+  const lastUser = [...history].reverse().find((m) => m.role === "user");
+  const memory = lastUser ? buildContext(userId, chatId, lastUser.content) : "";
+
+  const seenUrls = new Set<string>();
+  const norm = (u: string) => u.replace(/\/+$/, "");
+
+  const finish = (text: string): string => {
+    const { clean, facts } = extractFacts(text);
+    for (const f of facts) {
+      if (seenUrls.has(norm(f.source_url))) {
+        saveFact(userId, chatId, f.item.toLowerCase().trim(), f.value.trim(), f.source_url);
+      }
+    }
+    return clean;
+  };
+
   const contents: Content[] = history.map((m) => ({
     role: m.role === "assistant" ? "model" : "user",
     parts: [{ text: m.content }],
   }));
 
   for (let step = 0; step < 4; step++) {
-
     const lastStep = step === 3;
 
     const response = await generateWithRetry({
-      model: "gemini-3.5-flash-lite",
+      model: MODEL,
       contents,
       config: {
-      systemInstruction: `You are a helpful assistant with web search. Today is ${new Date().toDateString()}.
-      Search the web before answering anything about the outside world that could have changed: prices, plans, versions, releases, news, companies, products, people, or any question using words like latest, current, today, still, or since.
-      Do not search for greetings, arithmetic, or rewriting the user's own text.
-      Search at most twice per topic. After searching, name the source and page date for each fact. If a page has no date, say "date unknown".
-      If the searches find nothing useful, say plainly that you could not find it. You may share what you know, but label it as unverified.
-      Never invent facts or sources.`,
-      tools,
-      toolConfig: {
-        functionCallingConfig: {
-          mode: lastStep 
-            ? FunctionCallingConfigMode.NONE
-            : FunctionCallingConfigMode.AUTO,
-        }, 
+        systemInstruction: `You are a fast, helpful assistant with web search. Today is ${new Date().toDateString()}.
+Search before answering anything that can change: prices, plans, versions, news, products, people, or words like latest, current, today, still, since. Don't search for greetings, math or rewriting.
+Run all searches at once, at most two per topic. Name each source and its page date ("date unknown" if none).
+If nothing useful is found, say so. Never invent facts or sources. Keep answers short.
+If you searched, end with <facts>[{"item":"...","value":"...","source_url":"..."}]</facts> listing each price, limit, version or shortlist you found. Use the exact item names from saved records, and a URL from your search results. Skip the block if there is nothing to list.` + (memory ? "\n\n" + memory : ""),
+        tools,
+        toolConfig: {
+          functionCallingConfig: {
+            mode: lastStep
+              ? FunctionCallingConfigMode.NONE
+              : FunctionCallingConfigMode.AUTO,
+          },
+        },
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
       },
-      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-    },
     });
 
     const calls = response.functionCalls;
-    if (!calls || calls.length === 0) return response.text ?? "";
+    if (!calls || calls.length === 0) return finish(response.text ?? "");
 
     const modelContent = response.candidates?.[0]?.content;
     if (modelContent) contents.push(modelContent);
 
-        const parts = await Promise.all(
+    const parts = await Promise.all(
       calls.map(async (call) => {
-        console.log("tool call:", JSON.stringify(call));
-
         const name = call.name ?? "web_search";
         const args = (call.args ?? {}) as { query?: unknown };
         const query = typeof args.query === "string" ? args.query.trim() : "";
@@ -95,6 +111,7 @@ export async function reply(history: Message[]): Promise<string> {
 
         try {
           const results = await webSearch(query);
+          for (const r of results) seenUrls.add(norm(r.url));
           if (results.length === 0) {
             return {
               functionResponse: {
