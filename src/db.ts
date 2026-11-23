@@ -28,6 +28,21 @@ db.exec(`
     );`
 );
 
+db.exec(`
+    CREATE TABLE IF NOT EXISTS facts (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     TEXT NOT NULL,
+    chat_id     TEXT REFERENCES chats(id) ON DELETE SET NULL,
+    item        TEXT NOT NULL,
+    value       TEXT NOT NULL,
+    source_url  TEXT,
+    observed_at TEXT NOT NULL,
+    valid_from  TEXT NOT NULL,
+    valid_to    TEXT);
+    CREATE INDEX IF NOT EXISTS idx_facts_user_item ON facts (user_id, item);
+    `
+);
+
 export interface Chat {
     id: string;
     user_id: string;
@@ -103,4 +118,47 @@ export function deleteChat(userId: string, chatId: string): boolean {
         .run(chatId, userId);
     return result.changes > 0;
 
+}
+
+export interface Fact {
+    id: number;
+    user_id: string;
+    chat_id: string | null;
+    item: string;
+    value: string;
+    source_url: string | null;
+    observed_at: string;
+    valid_from: string;
+    valid_to: string | null;
+}
+
+export function getCurrentFact(userId: string, item: string): Fact | undefined {
+    return db
+        .prepare("SELECT * FROM facts WHERE user_id = ? AND item = ? AND valid_to IS NULL")
+        .get(userId, item) as Fact | undefined;
+}
+
+export function saveFact(
+    userId: string,
+    chatId: string | null,
+    item: string,
+    value: string,
+    sourceUrl: string | null
+): "added" | "unchanged" | "changed" {
+    const now = new Date().toISOString();
+    const current = getCurrentFact(userId, item);
+
+    if (current && current.value === value) return "unchanged";
+
+    const write = db.transaction(() => {
+        if (current) {
+            db.prepare("UPDATE facts SET valid_to = ? WHERE id = ?").run(now, current.id);
+        }
+        db.prepare(
+            "INSERT INTO facts (user_id, chat_id, item, value, source_url, observed_at, valid_from) VALUES (?, ?, ?, ?, ?, ?, ?)"
+        ).run(userId, chatId, item, value, sourceUrl, now, now);
+    });
+    write();
+
+    return current ? "changed" : "added";
 }
