@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, type Content } from "@google/genai";
+import { GoogleGenAI, Type, FunctionCallingConfigMode, type Content, ThinkingLevel } from "@google/genai";
 import { webSearch } from "./search.js";
 import type { Message } from "./db.js";
 
@@ -44,13 +44,29 @@ export async function reply(history: Message[]): Promise<string> {
   }));
 
   for (let step = 0; step < 4; step++) {
+
+    const lastStep = step === 3;
+
     const response = await generateWithRetry({
       model: "gemini-3.5-flash-lite",
       contents,
       config: {
-        systemInstruction: `You are a helpful assistant with web search. Today is ${new Date().toDateString()}. Always search before answering questions about current prices, versions, news or anything that may have changed.`,
-        tools,
+      systemInstruction: `You are a helpful assistant with web search. Today is ${new Date().toDateString()}.
+      Search the web before answering anything about the outside world that could have changed: prices, plans, versions, releases, news, companies, products, people, or any question using words like latest, current, today, still, or since.
+      Do not search for greetings, arithmetic, or rewriting the user's own text.
+      Search at most twice per topic. After searching, name the source and page date for each fact. If a page has no date, say "date unknown".
+      If the searches find nothing useful, say plainly that you could not find it. You may share what you know, but label it as unverified.
+      Never invent facts or sources.`,
+      tools,
+      toolConfig: {
+        functionCallingConfig: {
+          mode: lastStep 
+            ? FunctionCallingConfigMode.NONE
+            : FunctionCallingConfigMode.AUTO,
+        }, 
       },
+      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+    },
     });
 
     const calls = response.functionCalls;
@@ -59,19 +75,48 @@ export async function reply(history: Message[]): Promise<string> {
     const modelContent = response.candidates?.[0]?.content;
     if (modelContent) contents.push(modelContent);
 
-    const parts = await Promise.all(
+        const parts = await Promise.all(
       calls.map(async (call) => {
-        const query = (call.args as { query: string }).query;
-        
-        console.log("searching:", query)
+        console.log("tool call:", JSON.stringify(call));
 
-        const results = await webSearch(query);
-        return {
-          functionResponse: {
-            name: call.name ?? "web_search",
-            response: { results },
-          },
-        };
+        const name = call.name ?? "web_search";
+        const args = (call.args ?? {}) as { query?: unknown };
+        const query = typeof args.query === "string" ? args.query.trim() : "";
+
+        if (!query) {
+          return {
+            functionResponse: {
+              id: call.id,
+              name,
+              response: { error: "Missing 'query'. Call web_search again with a query string." },
+            },
+          };
+        }
+
+        try {
+          const results = await webSearch(query);
+          if (results.length === 0) {
+            return {
+              functionResponse: {
+                id: call.id,
+                name,
+                response: {
+                  results: [],
+                  note: "No results found. Try at most one differently worded query, then tell the user you could not find it.",
+                },
+              },
+            };
+          }
+          return { functionResponse: { id: call.id, name, response: { results } } };
+        } catch (e) {
+          return {
+            functionResponse: {
+              id: call.id,
+              name,
+              response: { error: `Search failed: ${(e as Error).message}` },
+            },
+          };
+        }
       })
     );
 
