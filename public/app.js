@@ -10,7 +10,11 @@ async function api(path, options = {}) {
         headers: { "x-user-id": userId, "Content-Type": "application/json" },
     });
     if(res.status === 204) return null;
-    return res.json();                           // server reply n js obj
+
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || "Request failed");
+    return data;
+                      // server reply n js obj
 }
 
 // make one div per chat 
@@ -46,20 +50,30 @@ async function openChat(id) {
         box.appendChild(div);
     }
 }
-
 // send
 document.getElementById("send").addEventListener("click", async () => {
     const input = document.getElementById("input");
     const text = input.value.trim();
     if(!text || !currentChatId) return;
     input.value = "";
-    await api(`/api/chats/${currentChatId}/messages`, {
-        method: "POST",
-        body: JSON.stringify({ content: text }),
-    })
+    try {
+        await api(`/api/chats/${currentChatId}/messages`, {
+            method: "POST",
+            body: JSON.stringify({ content: text }),
+        });
+    } catch (e) {
+        await openChat(currentChatId);
+        const div = document.createElement("div");
+        div.textContent = `error: ${e.message}`;
+        document.getElementById("messages").appendChild(div);
+        return;
+    }
     await openChat(currentChatId);
     await loadChats();
 })
+
+
+
 
 document.getElementById("input").addEventListener("keydown", (e) => {
     if (e.key === "Enter") document.getElementById("send").click();

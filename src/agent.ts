@@ -45,6 +45,7 @@ export async function reply(history: Message[], userId: string, chatId: string):
   const lastUser = [...history].reverse().find((m) => m.role === "user");
   const memory = lastUser ? buildContext(userId, chatId, lastUser.content) : "";
 
+
   const seenUrls = new Set<string>();
   const norm = (u: string) => u.replace(/\/+$/, "");
 
@@ -62,6 +63,13 @@ export async function reply(history: Message[], userId: string, chatId: string):
     role: m.role === "assistant" ? "model" : "user",
     parts: [{ text: m.content }],
   }));
+
+   if (memory.startsWith("Saved Records")) {
+    const last = contents[contents.length - 1];
+    last.parts?.push({
+      text: "\n\n(Answer format: one line per saved item: **Name**: was <saved value> -> now <value you found> -> CHANGED / UNCHANGED / COULD NOT VERIFY (source URL, page date). Wrie both values. No general summary.)", 
+    });
+   }
 
   for (let step = 0; step < 4; step++) {
     const lastStep = step === 3;
@@ -88,7 +96,10 @@ export async function reply(history: Message[], userId: string, chatId: string):
     });
 
     const calls = response.functionCalls;
-    if (!calls || calls.length === 0) return finish(response.text ?? "");
+    if (!calls || calls.length === 0) {
+      const text = finish(response.text ?? "").trim();
+      return text || "I couldn't produce an answer for that. Could you rephrase or give me more detail?";
+    }
 
     const modelContent = response.candidates?.[0]?.content;
     if (modelContent) contents.push(modelContent);

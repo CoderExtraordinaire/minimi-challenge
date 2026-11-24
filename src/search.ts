@@ -16,13 +16,13 @@ export async function webSearch(query: string): Promise<SearchResult[]> {
          },
          body: JSON.stringify({
             query,
-            numResults: 5,
-            contents: { text: { maxCharacters: 1500 } },
+            numResults: 3,
+            contents: { text: { maxCharacters: 1000 } },
          }),
     });
     if (!res.ok) throw new Error(`Exa error ${res.status}`);
     const data = await res.json();
-    return data.results.map((r: any) => ({
+    return (data.results ?? []).map((r: any) => ({
         title: r.title ?? "",
         url: r.url,
         publishedDate: r.publishedDate ?? null,

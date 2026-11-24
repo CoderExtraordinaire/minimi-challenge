@@ -191,8 +191,8 @@ export function getFactsInRange(
     return db
         .prepare(
             `SELECT * FROM facts
-             WHERE user_id = ? AND valid_from <= ? AND (valid_to IS NULL OR valid_to >= ?)
+             WHERE user_id = ? AND observed_at BETWEEN ? AND ?
              ORDER BY observed_at DESC LIMIT ?`
         )
-        .all(userId, toIso, fromIso, limit) as Fact[];
+        .all(userId, fromIso, toIso, limit) as Fact[];
 }

@@ -1,7 +1,4 @@
 
-import "./db.js"
-
-
 
 import express, { type Request, type Response } from "express";
 import { listChats, createChat, getChat, getMessages, addMessage, setTitle, deleteChat } from "./db.js"
@@ -64,9 +61,15 @@ app.post("/api/chats/:id/messages", async (req, res) => {
   addMessage(chat.id, "user", content.trim());
   if (chat.title === "New chat") setTitle(chat.id, content.trim().slice(0, 40));
 
-  const answer = await reply(getMessages(chat.id), userId, chat.id);
+  let answer: string;
+  try{
+     answer = await reply(getMessages(chat.id), userId, chat.id);
+  }
+  catch(e) {
+     console.error(e);
+     return res.status(500).json({ error: "The ageny failed to answer or busy right now. Please Try again in a few seconnss."})
+  }
   addMessage(chat.id, "assistant", answer);
-
   res.status(201).json(getMessages(chat.id));
 });
 
