@@ -15,7 +15,7 @@ cp .env.example .env  (on Windows: copy .env.example .env)
 ...
 
 Open `.env` and add your keys:
-- `EA_API_KEY`: from the exa dashboard
+- `EXA_API_KEY`: from the exa dashboard
 - `GEMINI_API_KEY`: from Google AI Studio
 
 ...
