@@ -67,7 +67,7 @@ app.post("/api/chats/:id/messages", async (req, res) => {
   }
   catch(e) {
      console.error(e);
-     return res.status(500).json({ error: "The ageny failed to answer or busy right now. Please Try again in a few seconnss."})
+     return res.status(500).json({ error: "The agent failed to answer or busy right now. Please Try again in a few seconds."})
   }
   addMessage(chat.id, "assistant", answer);
   res.status(201).json(getMessages(chat.id));
@@ -84,4 +84,4 @@ app.delete("/api/chats/:id", (req, res) => {
 
 
 const port = Number(process.env.PORT ?? 3000);
-app.listen(port, () => console.log(`Runing at http://localhost:${port}`));
+app.listen(port, () => console.log(`Running at http://localhost:${port}`));

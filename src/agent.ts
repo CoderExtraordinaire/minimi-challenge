@@ -4,7 +4,7 @@ import { extractFacts } from "./facts.js";
 import { buildContext } from "./context.js";
 import { webSearch } from "./search.js";
 
-const MODEL = "gemini-3.5-flash-lite";
+const MODEL = "gemini-3.5-flash";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -41,7 +41,11 @@ async function generateWithRetry(
   throw new Error("unreachable");
 }
 
-export async function reply(history: Message[], userId: string, chatId: string): Promise<string> {
+export async function reply(
+  history: Message[], 
+  userId: string, 
+  chatId: string,
+): Promise<string> {
   const lastUser = [...history].reverse().find((m) => m.role === "user");
   const memory = lastUser ? buildContext(userId, chatId, lastUser.content) : "";
 
@@ -64,15 +68,21 @@ export async function reply(history: Message[], userId: string, chatId: string):
     parts: [{ text: m.content }],
   }));
 
-   if (memory.startsWith("Saved Records")) {
+   if (memory.startsWith("Saved records")) {
     const last = contents[contents.length - 1];
     last.parts?.push({
-      text: "\n\n(Answer format: one line per saved item: **Name**: was <saved value> -> now <value you found> -> CHANGED / UNCHANGED / COULD NOT VERIFY (source URL, page date). Wrie both values. No general summary.)", 
+      text: "\n\n(Answer format: one line per saved item: **Name**: was <saved value> -> now <value you found> -> CHANGED / UNCHANGED / COULD NOT VERIFY (source URL, page date). Write both values. No general summary.)", 
     });
    }
 
   for (let step = 0; step < 4; step++) {
     const lastStep = step === 3;
+
+    if(lastStep) {
+      contents[contents.length - 1].parts?.push({
+        text: "\n\n Write your final answer now, using what you have found so far. Do not search again.",
+      });
+    }
 
     const response = await generateWithRetry({
       model: MODEL,
