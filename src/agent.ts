@@ -4,7 +4,7 @@ import { extractFacts } from "./facts.js";
 import { buildContext } from "./context.js";
 import { webSearch } from "./search.js";
 
-const MODEL = "gemini-3.5-flash";
+const MODEL = "gemini-3.5-flash-lite";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -41,9 +41,22 @@ async function generateWithRetry(
   throw new Error("unreachable");
 }
 
+function plain(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/__(.+?)__/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^\s*[*-]\s+/gm, "- ")
+    .replace(/\*([^*\n]+)\*/g, "$1")
+    .replace(/^\s*---+\s*$/gm, "")
+    .replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, "$1 ($2)")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export async function reply(
-  history: Message[], 
-  userId: string, 
+  history: Message[],
+  userId: string,
   chatId: string,
 ): Promise<string> {
   const lastUser = [...history].reverse().find((m) => m.role === "user");
@@ -60,7 +73,7 @@ export async function reply(
         saveFact(userId, chatId, f.item.toLowerCase().trim(), f.value.trim(), f.source_url);
       }
     }
-    return clean;
+    return plain(clean);
   };
 
   const contents: Content[] = history.map((m) => ({
@@ -68,17 +81,17 @@ export async function reply(
     parts: [{ text: m.content }],
   }));
 
-   if (memory.startsWith("Saved records")) {
+  if (memory.startsWith("Saved records")) {
     const last = contents[contents.length - 1];
     last.parts?.push({
-      text: "\n\n(Answer format: one line per saved item: **Name**: was <saved value> -> now <value you found> -> CHANGED / UNCHANGED / COULD NOT VERIFY (source URL, page date). Write both values. No general summary.)", 
+      text: "\n\n(Answer format: one line per saved item: **Name**: was <saved value> -> now <value you found> -> CHANGED / UNCHANGED / COULD NOT VERIFY (source URL, page date). Write both values. No general summary.)",
     });
-   }
+  }
 
   for (let step = 0; step < 4; step++) {
     const lastStep = step === 3;
 
-    if(lastStep) {
+    if (lastStep) {
       contents[contents.length - 1].parts?.push({
         text: "\n\n Write your final answer now, using what you have found so far. Do not search again.",
       });
@@ -91,6 +104,7 @@ export async function reply(
         systemInstruction: `You are a fast, helpful assistant with web search. Today is ${new Date().toDateString()}.
         Search before answering anything that can change: prices, plans, versions, news, products, people, or words like latest, current, today, still, since. Don't search for greetings, math or rewriting.
         Run all searches at once, at most two per topic. Name each source and its page date ("date unknown" if none).
+        Write plain text only: on asterisks, no # headings, no table.Usse short lies, and a dash for lists.
         If nothing useful is found, say so. Never invent facts or sources. Keep answers short.
         If you searched, end with <facts>[{"item":"...","value":"...","source_url":"..."}]</facts> listing each price, limit, version or shortlist you found. Use the exact item names from saved records, and a URL from your search results. Skip the block if there is nothing to list.` + (memory ? "\n\n" + memory : ""),
         tools,
