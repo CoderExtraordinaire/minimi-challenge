@@ -1,9 +1,10 @@
-import Database from "better-sqlite3";
+import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 
 mkdirSync("data", { recursive: true });
-const db = new Database("data/memory.db");
+const db = new DatabaseSync("data/memory.db");
+db.exec("PRAGMA foreign_keys = ON;");
 console.log("Database opened");
 
 db.exec(`
@@ -14,9 +15,7 @@ db.exec(`
     created_at  TEXT NOT NULL,
     updated_at  TEXT NOT NULL
     );
-    `)
-
-db.pragma("foreign_keys = ON");
+`);
 
 db.exec(`
     CREATE TABLE IF NOT EXISTS messages (
@@ -25,12 +24,12 @@ db.exec(`
     role        TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
     content     TEXT NOT NULL,
     created_at  TEXT NOT NULL
-    );`
-);
+    );
+`);
 
 db.exec(`
     CREATE TABLE IF NOT EXISTS facts (
-    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id     TEXT NOT NULL,
     chat_id     TEXT REFERENCES chats(id) ON DELETE SET NULL,
     item        TEXT NOT NULL,
@@ -38,10 +37,10 @@ db.exec(`
     source_url  TEXT,
     observed_at TEXT NOT NULL,
     valid_from  TEXT NOT NULL,
-    valid_to    TEXT);
+    valid_to    TEXT
+    );
     CREATE INDEX IF NOT EXISTS idx_facts_user_item ON facts (user_id, item);
-    `
-);
+`);
 
 export interface Chat {
     id: string;
@@ -71,13 +70,13 @@ export function createChat(userId: string): Chat {
 export function listChats(userId: string): Chat[] {
     return db
         .prepare("SELECT * FROM chats WHERE user_id = ? ORDER BY updated_at DESC")
-        .all(userId) as Chat[];
+        .all(userId) as unknown as Chat[];
 }
 
 export function getChat(userId: string, chatId: string): Chat | undefined {
-    return db   
+    return db
         .prepare("SELECT * FROM chats WHERE id = ? AND user_id = ?")
-        .get(chatId, userId) as Chat  | undefined;
+        .get(chatId, userId) as unknown as Chat | undefined;
 }
 
 export type Role = "user" | "assistant";
@@ -104,8 +103,8 @@ export function addMessage(chatId: string, role: Role, content: string): Message
 
 export function getMessages(chatId: string): Message[] {
     return db
-    .prepare("SELECT * FROM messages WHERE chat_id = ? ORDER BY id")
-    .all(chatId) as Message[];
+        .prepare("SELECT * FROM messages WHERE chat_id = ? ORDER BY id")
+        .all(chatId) as unknown as Message[];
 }
 
 export function setTitle(chatId: string, title: string): void {
@@ -113,11 +112,10 @@ export function setTitle(chatId: string, title: string): void {
 }
 
 export function deleteChat(userId: string, chatId: string): boolean {
-    const result = db 
+    const result = db
         .prepare("DELETE FROM chats WHERE id = ? AND user_id = ?")
         .run(chatId, userId);
-    return result.changes > 0;
-
+    return Number(result.changes) > 0;
 }
 
 export interface Fact {
@@ -135,7 +133,7 @@ export interface Fact {
 export function getCurrentFact(userId: string, item: string): Fact | undefined {
     return db
         .prepare("SELECT * FROM facts WHERE user_id = ? AND item = ? AND valid_to IS NULL")
-        .get(userId, item) as Fact | undefined;
+        .get(userId, item) as unknown as Fact | undefined;
 }
 
 export function saveFact(
@@ -150,15 +148,19 @@ export function saveFact(
 
     if (current && current.value === value) return "unchanged";
 
-    const write = db.transaction(() => {
+    db.exec("BEGIN");
+    try {
         if (current) {
             db.prepare("UPDATE facts SET valid_to = ? WHERE id = ?").run(now, current.id);
         }
         db.prepare(
             "INSERT INTO facts (user_id, chat_id, item, value, source_url, observed_at, valid_from) VALUES (?, ?, ?, ?, ?, ?, ?)"
         ).run(userId, chatId, item, value, sourceUrl, now, now);
-    });
-    write();
+        db.exec("COMMIT");
+    } catch (e) {
+        db.exec("ROLLBACK");
+        throw e;
+    }
 
     return current ? "changed" : "added";
 }
@@ -179,7 +181,7 @@ export function getUserMessagesInRange(
                AND m.chat_id != ?
              ORDER BY m.created_at DESC LIMIT ?`
         )
-        .all(userId, fromIso, toIso, excludeChatId, limit) as (Message & { chat_title: string })[];
+        .all(userId, fromIso, toIso, excludeChatId, limit) as unknown as (Message & { chat_title: string })[];
 }
 
 export function getFactsInRange(
@@ -194,5 +196,5 @@ export function getFactsInRange(
              WHERE user_id = ? AND observed_at BETWEEN ? AND ?
              ORDER BY observed_at DESC LIMIT ?`
         )
-        .all(userId, fromIso, toIso, limit) as Fact[];
+        .all(userId, fromIso, toIso, limit) as unknown as Fact[];
 }

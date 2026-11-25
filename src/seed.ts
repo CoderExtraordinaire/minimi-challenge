@@ -1,4 +1,5 @@
-import Database from "better-sqlite3";
+import {DatabaseSync} from "node:sqlite";
+
 
 const userId = process.argv[2];
 if (!userId) {
@@ -6,8 +7,8 @@ if (!userId) {
   process.exit(1);
 }
 
-const db = new Database("data/memory.db");
-db.pragma("foreign_keys = ON");
+const db = new DatabaseSync("data/memory.db");
+db.exec("PRAGMA foreign_keys = ON");
 
 function lastWeekday(dow: number, hour: number): Date {
   const d = new Date();
