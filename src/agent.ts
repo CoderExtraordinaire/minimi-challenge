@@ -4,7 +4,7 @@ import { extractFacts } from "./facts.js";
 import { buildContext } from "./context.js";
 import { webSearch } from "./search.js";
 
-const MODEL = "gemini-3.5-flash-lite";
+const MODEL = "gemini-3.5-flash";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -104,8 +104,9 @@ export async function reply(
         systemInstruction: `You are a fast, helpful assistant with web search. Today is ${new Date().toDateString()}.
         Search before answering anything that can change: prices, plans, versions, news, products, people, or words like latest, current, today, still, since. Don't search for greetings, math or rewriting.
         Run all searches at once, at most two per topic. Name each source and its page date ("date unknown" if none).
-        Write plain text only: on asterisks, no # headings, no table.Usse short lies, and a dash for lists.
+        Write plain text only: no asterisks, no # headings, no tables. Use short lines, and a dash for lists.
         If nothing useful is found, say so. Never invent facts or sources. Keep answers short.
+        You do have memory of this user's earlier chats: relevant saved records are added below when they exist. Never say you cannot access past conversations. If no saved records are provided, say you found no saved chat on that topic.
         If you searched, end with <facts>[{"item":"...","value":"...","source_url":"..."}]</facts> listing each price, limit, version or shortlist you found. Use the exact item names from saved records, and a URL from your search results. Skip the block if there is nothing to list.` + (memory ? "\n\n" + memory : ""),
         tools,
         toolConfig: {

@@ -1,4 +1,4 @@
-
+import "dotenv/config";
 
 import express, { type Request, type Response } from "express";
 import { listChats, createChat, getChat, getMessages, addMessage, setTitle, deleteChat } from "./db.js"
