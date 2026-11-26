@@ -18,9 +18,7 @@ Open `.env` and add your keys:
 - `GEMINI_API_KEY`: from Google AI Studio
 
 ```
-
 npm run dev
-
 ```
 
 Then open http://localhost:3000. The SQLite database (`data/memory.db`) is created on the first run.
