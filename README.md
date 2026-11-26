@@ -8,11 +8,10 @@ How it works and why: see [DESIGN.md](DESIGN.md).
 
 Requires Node 22.13  or newer.
 
-...
-
+```
 npm install
 cp .env.example .env  (on Windows: copy .env.example .env)
-...
+```
 
 Open `.env` and add your keys:
 - `EXA_API_KEY`: from the exa dashboard
@@ -45,6 +44,6 @@ To try older dates without waiting, load sample history:
 ## Notes
 
 - Stack: TypeScript on Node (run with tsx), Express, SQLite(Node's built-in `node:sqlite`), chrono-node, Exa search and Gemini.
-- The free Gemini tier can return 503 or 429 errors whrn busy.wait a minute and try again.
+- The free Gemini tier can return 503 or 429 errors whrn busy. wait a minute and try again.
 - Recommanded Gemini Model : "gemini-3.5-flash" OR " gemini-3.5-flash-lite". Switch between two if one hits free tier linits.
 - Clearning the browser's site data creates a new user, and the earlier history is no longer visible to it.
