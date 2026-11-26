@@ -6,7 +6,7 @@ How it works and why: see [DESIGN.md](DESIGN.md).
 
 ## Run it
 
-Requires Node 20.6 or newer.
+Requires Node 22.13  or newer.
 
 ...
 
@@ -21,6 +21,7 @@ Open `.env` and add your keys:
 ...
 
 npm run dev
+
 ...
 
 Then open http://localhost:3000. The SQLite database (`data/memory.db`) is created on the first run.
@@ -35,7 +36,7 @@ Memory is per browser, and each browser gets its own anonymous use id.
 
 To try older dates without waiting, load sample history:
 
-1. In the browser console, run `localStorage.getItem("userid")` and copy the id. 
+1. In the browser console, run `localStorage.getItem("userId")` and copy the id. 
 2. `npm run seed -- <your-id>`
 3. Ask "What did I ask you on 3 November?", or "On Monday we shorlisted 5 CRM tools. has any of them changed pricing?".
 
@@ -43,7 +44,7 @@ To try older dates without waiting, load sample history:
 
 ## Notes
 
-- Stack: TypeScript on Node (run with tsx), Express, SQLite(), chrono-node, Exa search and Gemini.
--The free Gemini tier can return 503 or 429 errors whrn busy.wait a minute and try again.
--Recommanded Gemini Model : "gemini-3.5-flash" OR " gemini-3.5-flash-lite". Switch between two if one hits free tier linits.
--Clearning the browser's site data creates a new user, and the earlier history is no longer visible to it.
+- Stack: TypeScript on Node (run with tsx), Express, SQLite(Node's built-in `node:sqlite`), chrono-node, Exa search and Gemini.
+- The free Gemini tier can return 503 or 429 errors whrn busy.wait a minute and try again.
+- Recommanded Gemini Model : "gemini-3.5-flash" OR " gemini-3.5-flash-lite". Switch between two if one hits free tier linits.
+- Clearning the browser's site data creates a new user, and the earlier history is no longer visible to it.
